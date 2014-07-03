@@ -3,9 +3,12 @@
 use strict;
 use warnings;
 
-use Net::Twitter;
+use CGI;
+use CGI::Session;
+#セッションとかフォーム入力とかとても簡単にする
 
-use AnyEvent::Twitter::Stream;
+use Net::Twitter;
+# 各種認証とREST_API
 
 use DBI;
 =pod
@@ -22,6 +25,10 @@ master_idに親垢のidを設定する、master_idがNULLなら親垢
 
 use utf8;
 use Encode;
+#utf-8対応
+
+use XML::Simple;
+#設定ファイル用
 
 our $dbh = DBI->connect('DBI:mysql:Tohbaq:localhost:3306','tohbaq','39tanprpr');
 #GRANT済みだし外から叩け無いので安心
@@ -34,3 +41,8 @@ $dbh->do("set names utf8");
 お決まりのutf-8対応
 =cut
 
+our $argument = $EVN{'QUIERY_STRING'};
+
+my $cgi = new CGI;
+
+my $consumer_key = 
