@@ -49,7 +49,7 @@ if(!defined $mode){
 	));
 
 	map { $view->set_cookie($_) } @cookies;
-	print $view->redirect(-url => $url);
+	print $view->redirect($url);
 
 }elsif($mode = 'callback'){
 
@@ -74,7 +74,7 @@ if(!defined $mode){
 
 	}elsif(!defined($user)){
 
-		$model->insert('user',
+		$db->insert('user',
 		{
 			id => 1,
 			access_token => $access_token;
@@ -86,7 +86,10 @@ if(!defined $mode){
 
 	}
 
-}elsif($mode = 'exec'){
+}elsif($mode = 'add_login'){
+
+	$view->get_session;
+	
 
 
 	
