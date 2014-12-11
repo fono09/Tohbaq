@@ -3,64 +3,94 @@
 use strict;
 use warnings;
 
-use KiokuDB;
-#ORMをｽﾙﾉﾃﾞｽ
-
+use Tohbaq::Model;
 use CGI;
 use CGI::Session;
-#セッションとかフォーム入力とかとても簡単にする
-
 use Net::Twitter;
-# 各種認証とREST_API
-
-use utf8;
 use Encode;
-#utf-8対応
-
 use XML::Simple;
-#設定ファイル用
-
-our $kdb = KiokuDB->connect('dbi:SQLite:dbname=Tohbaq.db');
-#KiokuDB使います
-
+use utf8;
 binmode(STDIN,":utf8");
 binmode(STDOUT,":utf8");
 binmode(STDERR,":utf8");
-#お決まりのutf-8対応
 
-our $argument = $ENV{'QUIERY_STRING'};
 
 my $cgi = CGI->new;
 
-print CGI->header;
-print <<'EOF';
-<!--#set var="data" value="Tohbaq<>統合爆撃ツールを使う<>FONO,Twitter,爆撃" -->
-<!--#include virtual="/main.files/header.cgi" -->
+my $xml_ref = XMLin('./settings.xml');
+my $nt = Net::Twitter->new(
+	traits => [qw( API::RESTv1_1 OAuth )],
+	consumer_key => $xml_ref->{consumer_key},
+	consumer_secret => $xml_ref->{consumer_secret},
+	ssl => 1,
+);
+my $db = Tohbaq::Model->new( { connect_info => [ 'dbi:SQLite:Tohbaq.db' ] } );
+my $view = Tohbaq::View->new;
 
-<h1>ようこそ、Tohbaqへ!!!!</h1>
+my $mode = $cgi->param('mode');
+if(!defined $mode){
 
-<a href="./Tohbaq.cgi?mode=login">使いたい</a>
+	$view->top;
 
-<!--#include virtual="/main.files/tools.cgi" -->
+}elsif($mode eq 'login'){
 
-EOF
+	my $url = $nt->get_authorization_url(
+		callback => 'http://fono.jp/twiapps/Tohbaq/Tohbaq.cgi?mode=callback',
+	);
 
-{
-	package User;
-	use Moose;
+	my @cookies;	
+	push(@cookies,$cgi->cookie(
+		-name => 'request_token',
+		-value => $nt->request_token,
+	));
+	push(@cookies,$cgi->cookie(
+		-name => 'request_token_secret',
+		-value => $nt->request_token_secret,
+	));
 
-	has id => ( is => 'ro', isa => 'Int'); 
-	has access_token => ( is => 'ro', isa => 'Str');
-	has access_token_secret => ( is => 'ro', isa =>'Str');
+	map { $view->set_cookie($_) } @cookies;
+	print $view->redirect($url);
 
-}
+}elsif($mode = 'callback'){
 
-{
+	my $oauth_token = $cgi->param('oauth_token');
+	my $oauth_verifier = $cgi->param('oauth_verifier');
 
-	package MasterUser;
-	use Moose;
-	use base qw/User/;
+	$nt->request_token($cgi->cookie('request_token'));
+	$nt->request_token_secret($cgi->cookie('request_token_secret'));
 
-	has slave => ( is => 'rw', isa => 'ArrayRef[User]');
+	my ($access_token, $access_token_secret, $user_id, $screen_name) = $nt->request_access_token(verifier => $oauth_verifier);
 
+	my $user = $db->single('user',{ id => $user_id });
+
+	if(defined($user) && defined($user->master)){
+
+		$view->error("このアカウントは既に「子アカウント」としての登録があります");
+		
+	}elsif(defined($user) && !defined($user->master)){
+	
+		$view->set_session($user_id,$screen_name);
+		$view->menu($user_id,$screen_name);
+
+	}elsif(!defined($user)){
+
+		$db->insert('user',
+		{
+			id => 1,
+			access_token => $access_token;
+			access_token_secret => $access_token_secret;
+
+		});
+
+		$view->menu($user_id,$screen_name);
+
+	}
+
+}elsif($mode = 'add_login'){
+
+	$view->get_session;
+	
+
+
+	
 }
