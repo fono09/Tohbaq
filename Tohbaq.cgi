@@ -4,27 +4,29 @@ use strict;
 use warnings;
 
 use Tohbaq::Model;
+use Tohbaq::View;
+
 use CGI;
 use CGI::Session;
 use Net::Twitter;
 use Encode;
 use XML::Simple;
 use utf8;
-binmode(STDIN,":utf8");
-binmode(STDOUT,":utf8");
-binmode(STDERR,":utf8");
+#binmode(STDIN,":utf8");
+#binmode(STDOUT,":utf8");
+#binmode(STDERR,":utf8");
 
 
 my $cgi = CGI->new;
 
 my $xml_ref = XMLin('./settings.xml');
 my $nt = Net::Twitter->new(
-	traits => [qw( API::RESTv1_1 OAuth )],
+	traits => [qw/ API::RESTv1_1/],
 	consumer_key => $xml_ref->{consumer_key},
 	consumer_secret => $xml_ref->{consumer_secret},
 	ssl => 1,
 );
-my $db = Tohbaq::Model->new( { connect_info => [ 'dbi:SQLite:Tohbaq.db' ] } );
+my $model = Tohbaq::Model->new( { connect_info => [ 'dbi:SQLite:dbname=Tohbaq.db' ], AutoCommit => 1, sqlite_unicode=>1 } );
 my $view = Tohbaq::View->new;
 
 my $mode = $cgi->param('mode');
@@ -48,7 +50,7 @@ if(!defined $mode){
 		-value => $nt->request_token_secret,
 	));
 
-	map { $view->set_cookie($_) } @cookies;
+	map { $model->set_cookie($_) } @cookies;
 	print $view->redirect($url);
 
 }elsif($mode = 'callback'){
@@ -61,7 +63,7 @@ if(!defined $mode){
 
 	my ($access_token, $access_token_secret, $user_id, $screen_name) = $nt->request_access_token(verifier => $oauth_verifier);
 
-	my $user = $db->single('user',{ id => $user_id });
+	my $user = $model->single('user',{ id => $user_id });
 
 	if(defined($user) && defined($user->master)){
 
@@ -69,16 +71,16 @@ if(!defined $mode){
 		
 	}elsif(defined($user) && !defined($user->master)){
 	
-		$view->set_session($user_id,$screen_name);
+		$model->set_session($user_id,$screen_name);
 		$view->menu($user_id,$screen_name);
 
 	}elsif(!defined($user)){
 
-		$db->insert('user',
+		$model->insert('user',
 		{
 			id => 1,
-			access_token => $access_token;
-			access_token_secret => $access_token_secret;
+			access_token => $access_token,
+			access_token_secret => $access_token_secret,
 
 		});
 
@@ -88,7 +90,7 @@ if(!defined $mode){
 
 }elsif($mode = 'add_login'){
 
-	$view->get_session;
+	$model->get_session;
 	
 
 

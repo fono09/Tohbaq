@@ -25,51 +25,6 @@ EOF
 
 }
 
-sub set_cookie {
-
-	my $self = shift;
-	my $cookie = shift;
-
-	print 'Set-Cookie: '. $cookie . "\n";
-
-}
-
-sub set_session {
-
-	my $self = shift;
-	my $user_id = shift;
-	
-	my $session = CGI::Session->new(undef, undef, { Directory => './session' });
-	$session->expire('+12h');
-	$session->param('id',$user_id);
-
-	$self->set_cookie($cgi->cookie(-name => 'CGISESSID', -value => $session->id));
-
-}
-
-sub get_session {
-
-	my $self = shift;
-
-	my $sid = $cgi->cookie('CGISESSID');
-	my $session = CGI::Session->new(undef, $sid, { Directory => './session' });
-	
-	if(!$session->id){
-
-		$self->redirect("./Tohbaq.cgi");
-
-	}elsif($session->id && !$session->param('id')){
-
-		$session->close;
-		$session->delete;
-		$self->redirect("./Tohbaq.cgi");
-
-	}
-
-	return $session->param('id');
-
-}
-
 sub redirect {
 
 	my $self = shift;
@@ -80,7 +35,7 @@ sub redirect {
 }
 sub top {
 
-	$self = shift;
+	my $self = shift;
 
 	$self->header;
 	print <<'EOF';
@@ -100,9 +55,9 @@ EOF
 
 sub menu {
 
-	$self = shift;
-	$user_id = shift;
-	$screen_name = shift;
+	my $self = shift;
+	my $user_id = shift;
+	my $screen_name = shift;
 
 	$self->header;
 
@@ -114,8 +69,8 @@ EOF
 
 sub error {
 
-	$self = shift;
-	$message = shift;
+	my $self = shift;
+	my $message = shift;
 
 	$self->header;
 	print <<'EOF';
