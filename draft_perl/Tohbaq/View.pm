@@ -30,7 +30,7 @@ sub redirect {
 	my $self = shift;
 	my $url = shift;
 
-	$cgi->redirect(-url => $url);
+	print $cgi->redirect(-url => $url);
 
 }
 sub top {
@@ -58,13 +58,26 @@ sub menu {
 	my $self = shift;
 	my $user_id = shift;
 	my $screen_name = shift;
+	my @slave_list = @_;
 
 	$self->header;
 
 	
-	print "ようこそ、$screen_name さん。今日も爆撃ですか。\n";
+	print "ようこそ、$screen_name さん。今日も爆撃ですか。<br>\n";
 	print <<'EOF';
+<a href="./Tohbaq.cgi?mode=login&add_slave=true">使用アカウント追加</a>(こちら追加したアカウントは爆撃に使用できますが、このアプリにログインできなくなります。予めご了承ください。)<br>
+<form id="menu" action="./Tohbaq.cgi" method="post">
+アカウント:<select name="accounts">
 EOF
+	print "<option value=\"$user_id\">$screen_name</option>";
+	map { print "<option value=\"$_->[0]\">$_->[1]</option>" } @slave_list;
+	print <<'EOF';
+</select><br>
+アプリ広告を挟む:<input type="checkbox" name="ad"><br>
+複数行対応フォーム:<textarea name="text"></textarea><br>
+EOF
+	$self->footer;
+
 }
 
 sub error {
@@ -79,5 +92,7 @@ sub error {
 EOF
 	print $message;
 	$self->footer;
+
+	die;
 
 }
